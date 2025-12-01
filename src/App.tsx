@@ -418,6 +418,23 @@ const App: React.FC = () => {
     if (s1) s1.nextDirection = dir;
   };
 
+  // Pointer / Mouse / Touch location handler (click or drag)
+  const handlePointerDirection = (dir: Direction) => {
+    if (statusRef.current !== GameStatus.PLAYING) return;
+    initAudio();
+    const s1 = snakesRef.current.find(s => s.id === 1);
+    if (!s1 || s1.isDead || s1.isBot) return;
+
+    const cd = s1.direction;
+    const isOpposite =
+      (dir === Direction.UP && cd === Direction.DOWN) ||
+      (dir === Direction.DOWN && cd === Direction.UP) ||
+      (dir === Direction.LEFT && cd === Direction.RIGHT) ||
+      (dir === Direction.RIGHT && cd === Direction.LEFT);
+
+    if (!isOpposite) s1.nextDirection = dir;
+  };
+
   // Swipe Handler
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
@@ -505,7 +522,8 @@ const App: React.FC = () => {
                   particles={particles}
                   width={canvasSize}
                   height={canvasSize}
-                  flashIntensity={flashIntensity}
+                flashIntensity={flashIntensity}
+                onSetDirection={handlePointerDirection}
                 />
                
                {/* Pause Overlay */}

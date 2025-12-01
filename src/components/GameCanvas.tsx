@@ -1,6 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import type{ Snake, Point, Particle } from '../types';
+import { Direction } from '../types';
 import { GRID_SIZE, COLORS } from '../constants';
 
 interface GameCanvasProps {
@@ -10,10 +11,15 @@ interface GameCanvasProps {
   width: number;
   height: number;
   flashIntensity: number; // 0.0 to 1.0
+  onSetDirection?: (dir: typeof Direction[keyof typeof Direction]) => void;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ snakes, food, particles, width, height, flashIntensity }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ snakes, food, particles, width, height, flashIntensity, onSetDirection }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pointerDownRef = useRef(false);
+
+  // cellSize is useful both for rendering and for pointer -> grid calculations
+  const cellSize = width / GRID_SIZE;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,7 +28,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ snakes, food, particles, width,
     if (!ctx) return;
 
     // --- Render Config ---
-    const cellSize = width / GRID_SIZE;
+    // const cellSize = width / GRID_SIZE; (moved up)
     const time = Date.now();
     
     // Global Pulse (Breathing effect)
@@ -194,6 +200,66 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ snakes, food, particles, width,
     ctx.globalAlpha = 1.0;
 
   }, [snakes, food, particles, width, height, flashIntensity]);
+
+  // Pointer handlers: map pointer/touch/mouse position to a direction relative to player's head
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const toGrid = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((clientX - rect.left) / rect.width) * GRID_SIZE);
+      const y = Math.floor(((clientY - rect.top) / rect.height) * GRID_SIZE);
+      return { x, y };
+    };
+
+    const computeDirFromPoint = (clientX: number, clientY: number) => {
+      if (!snakes || snakes.length === 0) return null;
+      const player = snakes.find(s => s.id === 1 && !s.isBot);
+      if (!player || player.isDead) return null;
+      const head = player.body[0];
+      const gridPos = toGrid(clientX, clientY);
+      const dx = gridPos.x - head.x;
+      const dy = gridPos.y - head.y;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        return dx > 0 ? Direction.RIGHT : Direction.LEFT;
+      }
+      return dy > 0 ? Direction.DOWN : Direction.UP;
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      (e as any).stopPropagation?.();
+      pointerDownRef.current = true;
+      try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch {}
+      const dir = computeDirFromPoint(e.clientX, e.clientY);
+      if (dir && typeof onSetDirection === 'function') onSetDirection(dir);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!pointerDownRef.current) return;
+      (e as any).stopPropagation?.();
+      const dir = computeDirFromPoint(e.clientX, e.clientY);
+      if (dir && typeof onSetDirection === 'function') onSetDirection(dir);
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      pointerDownRef.current = false;
+      try { (e.target as Element).releasePointerCapture?.(e.pointerId); } catch {}
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [snakes, onSetDirection]);
 
   return (
     <canvas
