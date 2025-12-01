@@ -462,7 +462,7 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-900/50 to-black z-0" />
       
       {/* Header */}
-      <div className="z-10 w-full max-w-4xl p-2 md:p-4 flex justify-between items-center text-white shrink-0">
+      <div className="z-10 w-full max-w-4xl p-2 mt-4 md:p-4 flex justify-between items-center text-white shrink-0">
         <div className="flex items-center gap-2 md:gap-4">
            {status !== GameStatus.MENU && (
              <button onClick={quitGame} className="p-2 hover:bg-white/10 rounded-full transition-colors z-20">
